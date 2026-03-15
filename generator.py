@@ -161,7 +161,7 @@ class MazeGenerator:
         x, y = entry
         visited[y][x] = True
         while stack:
-            curent = stack.pop()
+            curent = stack.pop(0)
 
             if curent == exit:
                 break

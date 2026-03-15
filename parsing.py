@@ -1,57 +1,42 @@
+# parsing.py
 from typing import Tuple, Optional
-from pydantic import BaseModel, Field, validator, ValidationError, root_validator
+from pydantic import BaseModel, Field, validator, root_validator, ValidationError
 from drawing import AsciiRenderer
-import os  
 
 
 class MazeConfig(BaseModel):
-    WIDTH: int = Field(..., ge=9)
-    HEIGHT: int = Field(..., ge=7)
+    WIDTH: int = Field(..., ge=9, description="Maze width (>=9)")
+    HEIGHT: int = Field(..., ge=7, description="Maze height (>=7)")
     ENTRY: Tuple[int, int]
     EXIT: Tuple[int, int]
-    OUTPUT_FILE: str
-
-
-    @validator("OUTPUT_FILE")
-    def validate_output_file(cls, v):
-        if not v.strip():
-            raise ValueError("OUTPUT_FILE cannot be empty")
-        if os.path.isdir(v):
-            raise ValueError(f"OUTPUT_FILE '{v}' cannot be a directory")
-        return v
+    PERFECT: bool = False  # <-- default False
 
     @validator("ENTRY")
     def validate_entry(cls, coord, values):
-        if len(coord) != 2:
-            raise ValueError("ENTRY must be (x, y)")
-
         w = values.get("WIDTH")
         h = values.get("HEIGHT")
-
+        if len(coord) != 2:
+            raise ValueError("ENTRY must be (x, y)")
         if w is not None and h is not None:
             x, y = coord
             if not (0 <= x < w and 0 <= y < h):
                 raise ValueError(f"ENTRY {coord} outside maze {w}x{h}")
             if coord in AsciiRenderer.cells_of_42(w, h):
                 raise ValueError("ENTRY cannot be in the 42-block")
-
         return coord
 
     @validator("EXIT")
     def validate_exit(cls, coord, values):
-        if len(coord) != 2:
-            raise ValueError("EXIT must be (x, y)")
-
         w = values.get("WIDTH")
         h = values.get("HEIGHT")
-
+        if len(coord) != 2:
+            raise ValueError("EXIT must be (x, y)")
         if w is not None and h is not None:
             x, y = coord
             if not (0 <= x < w and 0 <= y < h):
                 raise ValueError(f"EXIT {coord} outside maze {w}x{h}")
             if coord in AsciiRenderer.cells_of_42(w, h):
                 raise ValueError("EXIT cannot be in the 42-block")
-
         return coord
 
     @root_validator
@@ -83,9 +68,9 @@ def parsing_config_file(filepath: str) -> Optional[MazeConfig]:
                 elif key in {"ENTRY", "EXIT"}:
                     x, y = map(int, value.split(","))
                     value = (x, y)
-                elif key == "OUTPUT_FILE":
-                    value = value
-
+                elif key == "PERFECT":
+                    value = value.lower() in {"true", "1", "yes"}
+                
                 config[key] = value
 
         return MazeConfig(**config)
@@ -102,8 +87,3 @@ def parsing_config_file(filepath: str) -> Optional[MazeConfig]:
 
     return None
 
-
-if __name__ == "__main__":
-    config = parsing_config_file("config.txt")
-    if config:
-        print(config)
